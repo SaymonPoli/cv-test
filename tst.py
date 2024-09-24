@@ -1,41 +1,36 @@
-import cv2
+import cv2 as cv
 import numpy as np
 
-def detect_circles(frame):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (9, 9), 2)
-    
-    circles = cv2.HoughCircles(blurred, cv2.HOUGH_GRADIENT, dp=1.2, minDist=50, param1=50, param2=30, minRadius=10, maxRadius=50)
-    
-    if circles is not None:
-        circles = np.round(circles[0, :]).astype("int")
-        for (x, y, r) in circles:
-            cv2.circle(frame, (x, y), r, (0, 255, 0), 4)
-            
-    return frame, circles
-
-cap = cv2.VideoCapture(0)
+cap = cv.VideoCapture(0)
 
 while True:
     ret, frame = cap.read()
+    
     if not ret:
+        print("Failed to grab frame")
         break
 
-    processed_frame, circles = detect_circles(frame)
+    gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     
-    mask = np.zeros_like(frame)
+    gray = cv.medianBlur(gray, 5)
+    
+    circles = cv.HoughCircles(gray, cv.HOUGH_GRADIENT, 1, 20,
+                             param1=50, param2=30, minRadius=10, maxRadius=50)
+    
+    white_background = np.ones_like(frame) * 255
+
     if circles is not None:
-        for (x, y, r) in circles:
-            cv2.circle(mask, (x, y), r, (255, 255, 255), -1)  
-    
-    mask_gray = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-    
-    _, thresh_mask = cv2.threshold(mask_gray, 1, 255, cv2.THRESH_BINARY)
-    
-    result = np.where(thresh_mask[:, :, None] == 255, frame, white_background)
-    
-    cv2.imshow('Result', result)
+        circles = np.uint16(np.around(circles))
+        for i in circles[0, :]:
+            cv.circle(white_background, (i[0], i[0]), i[2], (0, 0, 0), 2)
+            cv.circle(white_background, (i[0], i[1]), 2, (0, 0, 0), 3)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    cv.imshow('Circles on White Background', white_background)
+
+    cv.imshow('Test preview', frame)
+    
+    if cv.waitKey(1) & 0xFF == ord('q'):
         break
-cv2.destroyAllWindows()
+
+cap.release()
+cv.destroyAllWindows()
